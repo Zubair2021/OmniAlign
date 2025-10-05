@@ -89,7 +89,9 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
 
   const baselineSequence = alignmentRows[0].sequence;
   const alignmentLength = baselineSequence.length;
-  const fontSize = Math.max(10, Math.round(cellSize * 0.45));
+  const showResidues = cellSize >= 30;
+  const rowHeight = showResidues ? cellSize : Math.max(10, Math.round(cellSize * 0.6));
+  const fontSize = showResidues ? Math.max(10, Math.round(cellSize * 0.45)) : 0;
 
   const getVariantClass = (char: string, baselineChar: string) => {
     if (char === baselineChar) {
@@ -191,11 +193,11 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
                       style={{
                         width: cellSize,
                         minWidth: cellSize,
-                        height: cellSize,
+                        height: rowHeight,
                         fontSize,
                       }}
                     >
-                      {char}
+                      {showResidues ? char : ""}
                     </div>
                   );
                 })}
