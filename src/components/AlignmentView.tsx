@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { multiSequenceAlignment } from "@/lib/sequenceUtils";
@@ -103,10 +102,10 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
   };
 
   return (
-    <Card className="p-5 space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <Card className="overflow-hidden border-border/60">
+      <div className="border-b border-border/60 bg-card/95 px-5 py-4">
         <h3 className="text-lg font-semibold">Sequence alignment overview</h3>
-        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+        <div className="mt-4 flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
           <div className="flex items-center gap-3">
             <span className="whitespace-nowrap">Label width</span>
             <Slider
@@ -114,7 +113,7 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
               min={MIN_LABEL_WIDTH}
               max={MAX_LABEL_WIDTH}
               step={10}
-              className="w-[150px]"
+              className="w-[160px]"
               onValueChange={(value) => value[0] && setLabelWidth(value[0])}
               aria-label="Header width"
             />
@@ -126,7 +125,7 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
               min={MIN_CELL_SIZE}
               max={MAX_CELL_SIZE}
               step={2}
-              className="w-[150px]"
+              className="w-[160px]"
               onValueChange={(value) => value[0] && setCellSize(value[0])}
               aria-label="Alignment zoom"
             />
@@ -134,8 +133,8 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
         </div>
       </div>
 
-      <ScrollArea className="w-full">
-        <div className="pb-4 space-y-2">
+      <div className="overflow-x-auto px-5 py-4">
+        <div className="min-w-max space-y-2">
           <div className="flex items-center gap-3">
             <div
               className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
@@ -159,7 +158,7 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
             </div>
           </div>
 
-          {alignmentRows.map((row, rowIndex) => (
+          {alignmentRows.map((row) => (
             <div key={row.header} className="flex items-center gap-3">
               <div
                 className={cn(
@@ -204,25 +203,26 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
             </div>
           ))}
         </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </div>
 
-      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <div className="h-4 w-4 rounded border border-border/40 bg-muted/60" />
-          <span>{comparisonResult.noReferenceMode ? "Consensus" : "Reference"}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-4 w-4 rounded border border-match/30 bg-match/20" />
-          <span>Match</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-4 w-4 rounded border border-mismatch/30 bg-mismatch/20" />
-          <span>Mismatch</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-4 w-4 rounded border border-gap/30 bg-gap/20" />
-          <span>Gap</span>
+      <div className="border-t border-border/60 bg-card/80 px-5 py-4 text-sm text-muted-foreground">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 rounded border border-border/40 bg-muted/60" />
+            <span>{comparisonResult.noReferenceMode ? "Consensus" : "Reference"}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 rounded border border-match/30 bg-match/20" />
+            <span>Match</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 rounded border border-mismatch/30 bg-mismatch/20" />
+            <span>Mismatch</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 rounded border border-gap/30 bg-gap/20" />
+            <span>Gap</span>
+          </div>
         </div>
       </div>
     </Card>
