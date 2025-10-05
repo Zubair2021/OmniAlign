@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
 import { SequenceInputs } from "@/components/SequenceInputs";
 import { ResultsTabs } from "@/components/ResultsTabs";
+import { ToolSidebar } from "@/components/ToolSidebar";
 import {
   parseFASTAEntries,
   validateSequence,
@@ -10,7 +11,6 @@ import {
   type SequenceType,
 } from "@/lib/sequenceUtils";
 import { summarizeNucleotideAlignment, type NucleotideSummary } from "@/lib/nucleotideUtils";
-import { ExperienceSpotlight } from "@/components/ExperienceSpotlight";
 import { toast } from "sonner";
 
 export interface ComparisonResult {
@@ -39,7 +39,6 @@ const Index = () => {
   const [selectedReferenceIndex, setSelectedReferenceIndex] = useState(0);
   const [noReferenceMode, setNoReferenceMode] = useState(false);
   const [sequenceType, setSequenceType] = useState<SequenceType>("protein");
-  const [isSpotlightOpen, setIsSpotlightOpen] = useState(true);
 
   const allSequences = useMemo(() => {
     const refEntries = parseFASTAEntries(referenceText, sequenceType);
@@ -216,34 +215,33 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       <Header />
-      <ExperienceSpotlight
-        open={isSpotlightOpen}
-        onOpenChange={setIsSpotlightOpen}
-        activeMode={sequenceType}
-        onModeSelect={handleSequenceTypeChange}
-      />
-      
-      <main className="container mx-auto px-4 py-8 space-y-8 max-w-7xl">
-        <SequenceInputs
-          referenceText={referenceText}
-          variantText={variantText}
-          onReferenceChange={setReferenceText}
-          onVariantChange={setVariantText}
-          onCompare={handleCompare}
-          onClear={handleClear}
-          onLoadFile={handleLoadFile}
-          isComparing={isComparing}
-          availableSequences={availableSequences}
-          selectedReferenceIndex={selectedReferenceIndex}
-          onReferenceIndexChange={setSelectedReferenceIndex}
-          noReferenceMode={noReferenceMode}
-          onNoReferenceModeChange={setNoReferenceMode}
-          sequenceType={sequenceType}
-          onSequenceTypeChange={handleSequenceTypeChange}
-        />
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <ToolSidebar />
 
-        <ResultsTabs comparisonResult={comparisonResult} />
-      </main>
+          <main className="flex-1 space-y-8">
+            <SequenceInputs
+              referenceText={referenceText}
+              variantText={variantText}
+              onReferenceChange={setReferenceText}
+              onVariantChange={setVariantText}
+              onCompare={handleCompare}
+              onClear={handleClear}
+              onLoadFile={handleLoadFile}
+              isComparing={isComparing}
+              availableSequences={availableSequences}
+              selectedReferenceIndex={selectedReferenceIndex}
+              onReferenceIndexChange={setSelectedReferenceIndex}
+              noReferenceMode={noReferenceMode}
+              onNoReferenceModeChange={setNoReferenceMode}
+              sequenceType={sequenceType}
+              onSequenceTypeChange={handleSequenceTypeChange}
+            />
+
+            <ResultsTabs comparisonResult={comparisonResult} />
+          </main>
+        </div>
+      </div>
     </div>
   );
 };

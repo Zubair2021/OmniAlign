@@ -1,224 +1,230 @@
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { multiSequenceAlignment } from "@/lib/sequenceUtils";
 import type { ComparisonResult } from "@/pages/Index";
 
 interface AlignmentViewProps {
   comparisonResult: ComparisonResult;
 }
 
+const DEFAULT_LABEL_WIDTH = 160;
+const MIN_LABEL_WIDTH = 100;
+const MAX_LABEL_WIDTH = 360;
+const MIN_CELL_SIZE = 18;
+const MAX_CELL_SIZE = 64;
+
 export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
-  const { reference, variants, multiAlignment, noReferenceMode } = comparisonResult;
+  const [cellSize, setCellSize] = useState(28);
+  const [labelWidth, setLabelWidth] = useState(DEFAULT_LABEL_WIDTH);
 
-  const getResidueClass = (refChar: string, varChar: string, isConsensus?: boolean) => {
-    if (isConsensus) {
-      return "bg-primary/20 text-primary border-primary/30 font-bold";
+  const aligned = useMemo(() => {
+    if (comparisonResult.noReferenceMode) {
+      return comparisonResult.multiAlignment ?? [];
     }
-    if (refChar === varChar) {
-      return "bg-match/20 text-match border-match/30";
-    } else if (varChar === "-" || refChar === "-") {
-      return "bg-gap/20 text-gap border-gap/30";
-    } else {
-      return "bg-mismatch/20 text-mismatch border-mismatch/30";
-    }
-  };
 
-  const getConsensusSequence = (sequences: Array<{ sequence: string }>) => {
-    if (sequences.length === 0) return "";
-    const len = sequences[0].sequence.length;
-    let consensus = "";
-    
-    for (let i = 0; i < len; i++) {
-      const chars: { [key: string]: number } = {};
-      sequences.forEach(seq => {
-        const char = seq.sequence[i];
-        chars[char] = (chars[char] || 0) + 1;
+    const sequences = [] as Array<{ header: string; sequence: string }>;
+    if (comparisonResult.reference) {
+      sequences.push(comparisonResult.reference);
+    }
+    comparisonResult.variants.forEach((variant) => {
+      sequences.push({ header: variant.header, sequence: variant.sequence });
+    });
+
+    if (sequences.length === 0) return [];
+    return multiSequenceAlignment(sequences, comparisonResult.sequenceType);
+  }, [comparisonResult]);
+
+  const consensus = useMemo(() => {
+    if (aligned.length === 0) return "";
+    const columns = aligned[0].sequence.length;
+    let result = "";
+
+    for (let col = 0; col < columns; col++) {
+      const counts: Record<string, number> = {};
+      aligned.forEach((seq) => {
+        const char = seq.sequence[col];
+        counts[char] = (counts[char] || 0) + 1;
       });
-      
-      // Find most common character
-      let maxCount = 0;
-      let maxChar = "-";
-      Object.entries(chars).forEach(([char, count]) => {
-        if (count > maxCount) {
-          maxCount = count;
-          maxChar = char;
+
+      let bestChar = "-";
+      let bestCount = 0;
+      Object.entries(counts).forEach(([char, count]) => {
+        if (count > bestCount) {
+          bestChar = char;
+          bestCount = count;
         }
       });
-      consensus += maxChar;
+      result += bestChar;
     }
-    return consensus;
-  };
 
-  if (noReferenceMode && multiAlignment) {
-    const consensus = getConsensusSequence(multiAlignment);
-    
+    return result;
+  }, [aligned]);
+
+  const alignmentRows = useMemo(() => {
+    if (aligned.length === 0) return [] as Array<{ header: string; sequence: string; role: "baseline" | "sample" }>;
+
+    if (!comparisonResult.noReferenceMode && aligned.length > 0) {
+      const [referenceRow, ...rest] = aligned;
+      return [
+        { header: referenceRow.header, sequence: referenceRow.sequence, role: "baseline" as const },
+        ...rest.map((seq) => ({ header: seq.header, sequence: seq.sequence, role: "sample" as const })),
+      ];
+    }
+
+    return [
+      { header: "Consensus", sequence: consensus, role: "baseline" as const },
+      ...aligned.map((seq) => ({ header: seq.header, sequence: seq.sequence, role: "sample" as const })),
+    ];
+  }, [aligned, comparisonResult.noReferenceMode, consensus]);
+
+  if (alignmentRows.length === 0) {
     return (
-      <Card className="p-5">
-        <h3 className="text-lg font-semibold mb-4">
-          Multi-Sequence Alignment ({multiAlignment.length} sequences)
-        </h3>
-        
-        <ScrollArea className="w-full">
-          <div className="space-y-2 pb-4">
-            {/* Position markers */}
-            <div className="flex gap-2 items-center">
-              <div className="w-32 text-xs font-semibold text-muted-foreground">Position</div>
-              <div className="flex gap-0.5">
-                {consensus.split("").map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-7 h-7 flex items-center justify-center text-[10px] font-mono text-muted-foreground"
-                  >
-                    {(i + 1) % 10 === 0 ? i + 1 : "·"}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Consensus sequence */}
-            <div className="flex gap-2 items-center border-b border-border pb-2">
-              <div className="w-32 text-sm font-bold truncate text-primary">Consensus</div>
-              <div className="flex gap-0.5">
-                {consensus.split("").map((char, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "w-7 h-7 flex items-center justify-center font-mono text-xs rounded border transition-colors",
-                      getResidueClass("", "", true)
-                    )}
-                  >
-                    {char}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* All sequences */}
-            {multiAlignment.map((seq, idx) => (
-              <div key={idx} className="flex gap-2 items-center">
-                <div className="w-32 text-sm font-semibold truncate" title={seq.header}>
-                  {seq.header}
-                </div>
-                <div className="flex gap-0.5">
-                  {seq.sequence.split("").map((char, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "w-7 h-7 flex items-center justify-center font-mono text-xs rounded border transition-colors",
-                        getResidueClass(consensus[i], char)
-                      )}
-                    >
-                      {char}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-
-        <div className="mt-4 flex flex-wrap gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-primary/20 border border-primary/30" />
-            <span className="text-muted-foreground">Consensus</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-match/20 border border-match/30" />
-            <span className="text-muted-foreground">Match</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-mismatch/20 border border-mismatch/30" />
-            <span className="text-muted-foreground">Mismatch</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-gap/20 border border-gap/30" />
-            <span className="text-muted-foreground">Gap</span>
-          </div>
-        </div>
+      <Card className="p-6 text-center text-sm text-muted-foreground">
+        Provide sequences and run an alignment to explore residue-level differences.
       </Card>
     );
   }
 
-  if (!reference) return null;
+  const baselineSequence = alignmentRows[0].sequence;
+  const alignmentLength = baselineSequence.length;
+  const fontSize = Math.max(10, Math.round(cellSize * 0.45));
+
+  const getVariantClass = (char: string, baselineChar: string) => {
+    if (char === baselineChar) {
+      return "bg-match/20 text-match border-match/30";
+    }
+    if (char === "-" || baselineChar === "-") {
+      return "bg-gap/20 text-gap border-gap/30";
+    }
+    return "bg-mismatch/20 text-mismatch border-mismatch/30";
+  };
 
   return (
-    <div className="space-y-6">
-      {variants.map((variant, idx) => (
-        <Card key={idx} className="p-5">
-          <h3 className="text-lg font-semibold mb-4">
-            {reference.header} vs {variant.header}
-          </h3>
-          
-          <ScrollArea className="w-full">
-            <div className="space-y-3 pb-4">
-              {/* Position markers */}
-              <div className="flex gap-2 items-center">
-                <div className="w-24 text-xs font-semibold text-muted-foreground">Position</div>
-                <div className="flex gap-0.5">
-                  {reference.sequence.split("").map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-7 h-7 flex items-center justify-center text-[10px] font-mono text-muted-foreground"
-                    >
-                      {(i + 1) % 10 === 0 ? i + 1 : "·"}
-                    </div>
-                  ))}
-                </div>
-              </div>
+    <Card className="p-5 space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h3 className="text-lg font-semibold">Sequence alignment overview</h3>
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3">
+            <span className="whitespace-nowrap">Label width</span>
+            <Slider
+              value={[labelWidth]}
+              min={MIN_LABEL_WIDTH}
+              max={MAX_LABEL_WIDTH}
+              step={10}
+              className="w-[150px]"
+              onValueChange={(value) => value[0] && setLabelWidth(value[0])}
+              aria-label="Header width"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="whitespace-nowrap">Zoom</span>
+            <Slider
+              value={[cellSize]}
+              min={MIN_CELL_SIZE}
+              max={MAX_CELL_SIZE}
+              step={2}
+              className="w-[150px]"
+              onValueChange={(value) => value[0] && setCellSize(value[0])}
+              aria-label="Alignment zoom"
+            />
+          </div>
+        </div>
+      </div>
 
-              {/* Reference sequence */}
-              <div className="flex gap-2 items-center">
-                <div className="w-24 text-sm font-semibold truncate">Reference</div>
-                <div className="flex gap-0.5">
-                  {reference.sequence.split("").map((char, i) => (
-                    <div
-                      key={i}
-                      className="w-7 h-7 flex items-center justify-center font-mono text-xs bg-muted/30 rounded border border-border/50"
-                    >
-                      {char}
-                    </div>
-                  ))}
+      <ScrollArea className="w-full">
+        <div className="pb-4 space-y-2">
+          <div className="flex items-center gap-3">
+            <div
+              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              style={{ width: labelWidth, flex: "0 0 auto" }}
+            >
+              Position
+            </div>
+            <div className="flex">
+              {Array.from({ length: alignmentLength }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-center font-mono text-[10px] text-muted-foreground"
+                  style={{
+                    width: cellSize,
+                    minWidth: cellSize,
+                  }}
+                >
+                  {(idx + 1) % 10 === 0 ? idx + 1 : "·"}
                 </div>
-              </div>
-
-              {/* Variant sequence */}
-              <div className="flex gap-2 items-center">
-                <div className="w-24 text-sm font-semibold truncate">Variant</div>
-                <div className="flex gap-0.5">
-                  {variant.sequence.split("").map((char, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "w-7 h-7 flex items-center justify-center font-mono text-xs font-semibold rounded border transition-colors",
-                        getResidueClass(reference.sequence[i], char)
-                      )}
-                    >
-                      {char}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-
-          <div className="mt-4 flex flex-wrap gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-match/20 border border-match/30" />
-              <span className="text-muted-foreground">Match</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-mismatch/20 border border-mismatch/30" />
-              <span className="text-muted-foreground">Mismatch</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-gap/20 border border-gap/30" />
-              <span className="text-muted-foreground">Gap</span>
+              ))}
             </div>
           </div>
-        </Card>
-      ))}
-    </div>
+
+          {alignmentRows.map((row, rowIndex) => (
+            <div key={row.header} className="flex items-center gap-3">
+              <div
+                className={cn(
+                  "font-medium overflow-hidden",
+                  row.role === "baseline" ? "text-muted-foreground" : "text-foreground",
+                )}
+                style={{ width: labelWidth, flex: "0 0 auto" }}
+                title={row.header}
+              >
+                <span className="block truncate">
+                  {row.header.length > 10 ? `${row.header.slice(0, 10)}…` : row.header}
+                </span>
+              </div>
+              <div className="flex">
+                {row.sequence.split("").map((char, colIndex) => {
+                  const baselineChar = baselineSequence[colIndex];
+                  const classes =
+                    row.role === "baseline"
+                      ? "bg-muted/60 text-muted-foreground border-border/40"
+                      : getVariantClass(char, baselineChar);
+
+                  return (
+                    <div
+                      key={`${row.header}-${colIndex}`}
+                      className={cn(
+                        "flex items-center justify-center border font-mono transition-colors",
+                        classes,
+                        row.role === "baseline" ? "font-semibold" : "font-bold",
+                      )}
+                      style={{
+                        width: cellSize,
+                        minWidth: cellSize,
+                        height: cellSize,
+                        fontSize,
+                      }}
+                    >
+                      {char}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+
+      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 rounded border border-border/40 bg-muted/60" />
+          <span>{comparisonResult.noReferenceMode ? "Consensus" : "Reference"}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 rounded border border-match/30 bg-match/20" />
+          <span>Match</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 rounded border border-mismatch/30 bg-mismatch/20" />
+          <span>Mismatch</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 rounded border border-gap/30 bg-gap/20" />
+          <span>Gap</span>
+        </div>
+      </div>
+    </Card>
   );
 };

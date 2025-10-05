@@ -1,10 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
-import { BarChart3, AlignLeft, Code2, Atom, Dna } from "lucide-react";
+import { BarChart3, AlignLeft, Code2, Dna } from "lucide-react";
 import { DifferencesView } from "./DifferencesView";
 import { AlignmentView } from "./AlignmentView";
 import { PyMOLView } from "./PyMOLView";
-import { ProteinAnalysis } from "./ProteinAnalysis";
 import { NucleotideInsights } from "./NucleotideInsights";
 import type { ComparisonResult } from "@/pages/Index";
 
@@ -27,13 +26,18 @@ export const ResultsTabs = ({ comparisonResult }: ResultsTabsProps) => {
     );
   }
 
-  const isProteinMode = comparisonResult.sequenceType === "protein";
   const isNucleotideMode = comparisonResult.sequenceType === "nucleotide";
 
   return (
     <Card className="shadow-large border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in">
       <Tabs defaultValue="alignment" className="w-full">
-        <TabsList className="w-full grid grid-cols-4 h-auto p-2 bg-muted/50">
+        <TabsList
+          className={`w-full h-auto p-2 bg-muted/50 ${
+            comparisonResult.sequenceType === "nucleotide"
+              ? "grid grid-cols-4"
+              : "grid grid-cols-3"
+          }`}
+        >
           <TabsTrigger value="alignment" className="flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:shadow-soft py-3">
             <AlignLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Alignment</span>
@@ -44,13 +48,7 @@ export const ResultsTabs = ({ comparisonResult }: ResultsTabsProps) => {
             <span className="hidden sm:inline">Statistics</span>
             <span className="sm:hidden">Stats</span>
           </TabsTrigger>
-          {isProteinMode ? (
-            <TabsTrigger value="protein" className="flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:shadow-soft py-3">
-              <Atom className="w-4 h-4" />
-              <span className="hidden sm:inline">Protein Analysis</span>
-              <span className="sm:hidden">Protein</span>
-            </TabsTrigger>
-          ) : (
+          {isNucleotideMode && (
             <TabsTrigger value="nucleotide" className="flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:shadow-soft py-3">
               <Dna className="w-4 h-4" />
               <span className="hidden sm:inline">Nucleotide Insights</span>
@@ -70,11 +68,6 @@ export const ResultsTabs = ({ comparisonResult }: ResultsTabsProps) => {
           <TabsContent value="differences" className="mt-0">
             <DifferencesView comparisonResult={comparisonResult} />
           </TabsContent>
-          {isProteinMode && (
-            <TabsContent value="protein" className="mt-0">
-              <ProteinAnalysis comparisonResult={comparisonResult} />
-            </TabsContent>
-          )}
           {isNucleotideMode && (
             <TabsContent value="nucleotide" className="mt-0">
               <NucleotideInsights comparisonResult={comparisonResult} />

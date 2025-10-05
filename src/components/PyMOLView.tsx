@@ -1,7 +1,7 @@
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 import type { ComparisonResult } from "@/pages/Index";
 
@@ -9,9 +9,36 @@ interface PyMOLViewProps {
   comparisonResult: ComparisonResult;
 }
 
+interface AggregatedMutation {
+  position: number;
+  count: number;
+  frequency: number;
+  residues: string;
+  referenceResidue: string;
+}
+
+const frequencyToPercent = (value: number) => (value * 100).toFixed(1);
+
+const buildPyMOLScript = (mutations: AggregatedMutation[]) => {
+  if (mutations.length === 0) {
+    return "# No mutation sites detected across samples";
+  }
+
+  const selection = mutations.map((item) => item.position).join("+");
+  const lines = [
+    "# Color mutation frequency with a green-to-red ramp",
+    "alter all, b=0",
+    ...mutations.map((item) => `alter (resi ${item.position}), b=${item.frequency.toFixed(2)}`),
+    `spectrum b, green_red, resi ${selection}`,
+    `show sticks, resi ${selection}`,
+    `select mutation_sites, resi ${selection}`,
+  ];
+
+  return lines.join("\n");
+};
+
 export const PyMOLView = ({ comparisonResult }: PyMOLViewProps) => {
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const { variants } = comparisonResult;
+  const [copied, setCopied] = useState(false);
 
   if (comparisonResult.sequenceType !== "protein") {
     return (
@@ -21,17 +48,46 @@ export const PyMOLView = ({ comparisonResult }: PyMOLViewProps) => {
     );
   }
 
-  const generatePyMOLCommand = (residues: number[]) => {
-    if (residues.length === 0) return "# No mutations to select";
-    return `select mutations, resi ${residues.join("+")}`;
-  };
+  const aggregated = useMemo(() => {
+    if (!comparisonResult.reference || comparisonResult.variants.length === 0) {
+      return [] as AggregatedMutation[];
+    }
 
-  const handleCopy = async (command: string, index: number) => {
+    const totals = new Map<number, { count: number; residues: Set<string> }>();
+
+    comparisonResult.variants.forEach((variant) => {
+      variant.residues.forEach((position) => {
+        const entry = totals.get(position) ?? { count: 0, residues: new Set<string>() };
+        entry.count += 1;
+        const residue = variant.sequence[position - 1] ?? "-";
+        if (residue !== "-") {
+          entry.residues.add(residue);
+        }
+        totals.set(position, entry);
+      });
+    });
+
+    const totalVariants = comparisonResult.variants.length;
+
+    return Array.from(totals.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([position, data]) => ({
+        position,
+        count: data.count,
+        frequency: data.count / totalVariants,
+        residues: data.residues.size > 0 ? Array.from(data.residues).join(", ") : "-",
+        referenceResidue: comparisonResult.reference!.sequence[position - 1] ?? "-",
+      }));
+  }, [comparisonResult]);
+
+  const command = useMemo(() => buildPyMOLScript(aggregated), [aggregated]);
+
+  const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(command);
-      setCopiedIndex(index);
+      setCopied(true);
       toast.success("Command copied to clipboard");
-      setTimeout(() => setCopiedIndex(null), 2000);
+      setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       toast.error("Failed to copy command");
     }
@@ -40,49 +96,71 @@ export const PyMOLView = ({ comparisonResult }: PyMOLViewProps) => {
   return (
     <div className="space-y-6">
       <Card className="p-5 bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
-        <h3 className="text-lg font-semibold mb-2">PyMOL Commands</h3>
+        <h3 className="text-lg font-semibold">PyMOL mutation heatmap script</h3>
         <p className="text-sm text-muted-foreground">
-          Copy these commands to select mutation sites in PyMOL for structural visualization
+          Frequencies are aggregated across all samples. Paste the script into PyMOL to color residues from green (rare) to red (common).
         </p>
       </Card>
 
-      {variants.map((variant, idx) => {
-        const command = generatePyMOLCommand(variant.residues);
-        const isCopied = copiedIndex === idx;
+      <Card className="space-y-4 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h4 className="text-base font-semibold">Generated script</h4>
+          <Button variant="outline" size="sm" onClick={handleCopy}>
+            {copied ? (
+              <>
+                <Check className="mr-2 h-4 w-4 text-accent" />
+                Copied
+              </>
+            ) : (
+              <>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy
+              </>
+            )}
+          </Button>
+        </div>
+        <div className="rounded-lg border border-border/60 bg-muted/40 p-4">
+          <pre className="whitespace-pre-wrap break-words font-mono text-sm text-foreground">{command}</pre>
+        </div>
+      </Card>
 
-        return (
-          <Card key={idx} className="p-5 space-y-3 hover:shadow-medium transition-shadow">
-            <h3 className="text-base font-semibold">{variant.header}</h3>
-            
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-muted/50 rounded-lg p-4 border border-border/50 overflow-x-auto">
-                <code className="font-mono text-sm text-foreground">
-                  {command}
-                </code>
-              </div>
-              
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleCopy(command, idx)}
-                className="shrink-0"
-              >
-                {isCopied ? (
-                  <Check className="w-4 h-4 text-accent" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-base font-semibold">Mutation frequency summary</h4>
+          <span className="text-sm text-muted-foreground">
+            Samples analysed: {comparisonResult.variants.length}
+          </span>
+        </div>
 
-            <p className="text-xs text-muted-foreground">
-              {variant.residues.length > 0 
-                ? `Selecting ${variant.residues.length} mutation site(s): ${variant.residues.join(", ")}`
-                : "No mutations to select"}
-            </p>
-          </Card>
-        );
-      })}
+        {aggregated.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No mutations detected across the provided samples.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-muted-foreground">
+                <tr className="border-b border-border/60">
+                  <th className="py-2 font-medium">Position</th>
+                  <th className="py-2 font-medium">Reference</th>
+                  <th className="py-2 font-medium">Variant residues</th>
+                  <th className="py-2 font-medium">Count</th>
+                  <th className="py-2 font-medium">Frequency</th>
+                </tr>
+              </thead>
+              <tbody>
+                {aggregated.map((item) => (
+                  <tr key={item.position} className="border-b border-border/40 last:border-0">
+                    <td className="py-2 font-semibold">{item.position}</td>
+                    <td className="py-2 font-mono text-muted-foreground">{item.referenceResidue}</td>
+                    <td className="py-2 font-mono">{item.residues}</td>
+                    <td className="py-2">{item.count}</td>
+                    <td className="py-2">{frequencyToPercent(item.frequency)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 };

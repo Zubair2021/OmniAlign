@@ -8,7 +8,8 @@ OmniAlign Atlas is a dual-mode FASTA alignment studio for both protein and nucle
 - Pairwise or multi-sequence alignment with interactive heatmap styling
 - Protein mode: physicochemical summaries, stability flags, secondary structure estimates, and PyMOL macros
 - Nucleotide mode: GC balance, base composition, transition/transversion counts, and one-click BLAST links
-- Welcome spotlight and floating tour button to guide new users through the experience
+- Zoomable, scrollable alignment matrix with consensus/reference overlays
+- Curated sidebar linking to structure prediction and BLAST tooling
 
 ## Getting Started
 
@@ -23,7 +24,7 @@ The development server runs on http://localhost:8080. Vite hot-module reload kee
 
 ## Mode Quick Start
 
-- Use the mode switch at the top of the editor card (or the floating "Experience tour" button) to select **Protein** or **Nucleotide** mode.
+- Use the mode switch at the top of the editor card to select **Protein** or **Nucleotide** mode.
 - Paste or load FASTA files for the reference and variants. Multi-sequence alignment allows you to skip the reference.
 - Protein mode unlocks physicochemical tables and PyMOL scripting; nucleotide mode exposes GC and transition/transversion analytics plus BLAST shortcuts.
 
