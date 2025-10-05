@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Play, RotateCcw, Upload, FileText, Sparkles } from "lucide-react";
+import { Play, RotateCcw, Upload, FileText, Sparkles, Download } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { toast } from "sonner";
 import type { SequenceType } from "@/lib/sequenceUtils";
+import { translateSequencesToProteins } from "@/lib/nucleotideUtils";
 
 interface SequenceInputsProps {
   referenceText: string;
@@ -24,6 +27,7 @@ interface SequenceInputsProps {
   onNoReferenceModeChange: (enabled: boolean) => void;
   sequenceType: SequenceType;
   onSequenceTypeChange: (sequenceType: SequenceType) => void;
+  parsedSequences: Array<{ header: string; sequence: string }>;
 }
 
 export const SequenceInputs = ({
@@ -42,7 +46,10 @@ export const SequenceInputs = ({
   onNoReferenceModeChange,
   sequenceType,
   onSequenceTypeChange,
+  parsedSequences,
 }: SequenceInputsProps) => {
+  const [translationFrame, setTranslationFrame] = useState(0);
+
   const referencePlaceholder =
     sequenceType === "protein"
       ? ">reference\nMTEYKLVVVGAGGVGKSALTIQLIQNH..."
@@ -57,10 +64,37 @@ export const SequenceInputs = ({
   const trimmedVariant = variantText.trim();
   const hasReferenceSelection = selectedReferenceIndex !== null || Boolean(trimmedReference);
   const hasComparisonSequences = Boolean(trimmedVariant);
+  const canTranslate = sequenceType === "nucleotide" && parsedSequences.length > 0;
 
   const canCompare = noReferenceMode
     ? Boolean(trimmedReference || trimmedVariant)
     : Boolean(hasReferenceSelection && hasComparisonSequences);
+
+  const handleProteinDownload = () => {
+    if (!canTranslate) {
+      toast.error("Provide nucleotide sequences to translate");
+      return;
+    }
+
+    const proteins = translateSequencesToProteins(parsedSequences, translationFrame);
+    if (proteins.length === 0) {
+      toast.error("No codons available at this frame to translate");
+      return;
+    }
+
+    const fasta = proteins
+      .map((entry) => `>${entry.header}\n${entry.sequence}`)
+      .join("\n");
+
+    const blob = new Blob([fasta], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `translated_frame${translationFrame + 1}.faa`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Downloaded ${proteins.length} translated sequence${proteins.length > 1 ? "s" : ""}`);
+  };
 
   return (
     <Card className="p-6 shadow-medium border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in">
@@ -180,6 +214,45 @@ export const SequenceInputs = ({
             </div>
           )}
         </div>
+
+        {canTranslate && (
+          <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border/50 bg-muted/20 p-4">
+            <div className="space-y-1">
+              <Label htmlFor="translation-frame" className="text-sm font-medium">
+                Translate nucleotide sequences to protein
+              </Label>
+              <p className="text-xs text-muted-foreground max-w-sm">
+                Choose an ORF frame (1-3) and download the translated FASTA without altering your current inputs.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Select
+                value={translationFrame.toString()}
+                onValueChange={(val) => {
+                  const nextFrame = Number.parseInt(val, 10);
+                  setTranslationFrame(Number.isNaN(nextFrame) ? 0 : nextFrame);
+                }}
+              >
+                <SelectTrigger id="translation-frame" className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Frame 1 (start at position 1)</SelectItem>
+                  <SelectItem value="1">Frame 2 (start at position 2)</SelectItem>
+                  <SelectItem value="2">Frame 3 (start at position 3)</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleProteinDownload}
+                variant="secondary"
+                className="inline-flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download protein FASTA
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-center gap-3">
           <Button

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import type { SequenceType } from "@/lib/sequenceUtils";
+import { inferSequenceType, type SequenceType } from "@/lib/sequenceUtils";
 import { Download, Info, Rocket, Workflow } from "lucide-react";
 
 interface ToolSidebarProps {
@@ -36,8 +36,9 @@ export const ToolSidebar = ({ sequences, sequenceType }: ToolSidebarProps) => {
   );
 
   const selectedSequence = selectedIndex !== null ? sequences[selectedIndex] : null;
-  const program = sequenceType === "protein" ? "blastp" : "blastn";
-  const database = sequenceType === "protein" ? "nr" : "nt";
+  const resolvedType = selectedSequence ? inferSequenceType(selectedSequence.sequence) : sequenceType;
+  const program = resolvedType === "protein" ? "blastp" : "blastn";
+  const database = resolvedType === "protein" ? "nr" : "nt";
 
   const fastaPayload = selectedSequence
     ? `>${selectedSequence.header}\n${selectedSequence.sequence}\n`

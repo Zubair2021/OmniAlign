@@ -288,6 +288,7 @@ const Index = () => {
               onNoReferenceModeChange={setNoReferenceMode}
               sequenceType={sequenceType}
               onSequenceTypeChange={handleSequenceTypeChange}
+              parsedSequences={allSequences}
             />
 
             <ResultsTabs comparisonResult={comparisonResult} />

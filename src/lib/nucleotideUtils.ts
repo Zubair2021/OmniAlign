@@ -35,6 +35,59 @@ export interface NucleotideSummary {
   comparisons: NucleotideComparisonStats[];
 }
 
+const GENETIC_CODE: Record<string, string> = {
+  TTT: "F", TTC: "F", TTA: "L", TTG: "L",
+  TCT: "S", TCC: "S", TCA: "S", TCG: "S",
+  TAT: "Y", TAC: "Y", TAA: "*", TAG: "*",
+  TGT: "C", TGC: "C", TGA: "*", TGG: "W",
+  CTT: "L", CTC: "L", CTA: "L", CTG: "L",
+  CCT: "P", CCC: "P", CCA: "P", CCG: "P",
+  CAT: "H", CAC: "H", CAA: "Q", CAG: "Q",
+  CGT: "R", CGC: "R", CGA: "R", CGG: "R",
+  ATT: "I", ATC: "I", ATA: "I", ATG: "M",
+  ACT: "T", ACC: "T", ACA: "T", ACG: "T",
+  AAT: "N", AAC: "N", AAA: "K", AAG: "K",
+  AGT: "S", AGC: "S", AGA: "R", AGG: "R",
+  GTT: "V", GTC: "V", GTA: "V", GTG: "V",
+  GCT: "A", GCC: "A", GCA: "A", GCG: "A",
+  GAT: "D", GAC: "D", GAA: "E", GAG: "E",
+  GGT: "G", GGC: "G", GGA: "G", GGG: "G",
+  NNN: "X",
+};
+
+const AMBIGUOUS_TO_N = /[BDHVRSWKMY]/g;
+
+export const translateNucleotideSequence = (sequence: string, frame: number = 0): string => {
+  if (frame < 0 || frame > 2) {
+    throw new Error("Reading frame must be 0, 1, or 2");
+  }
+
+  const normalized = normalizeSequence(sequence, "nucleotide");
+  const sanitized = normalized.replace(/-/g, "");
+  let protein = "";
+
+  for (let i = frame; i + 2 < sanitized.length; i += 3) {
+    const codon = sanitized
+      .slice(i, i + 3)
+      .replace(AMBIGUOUS_TO_N, "N");
+    protein += GENETIC_CODE[codon] ?? "X";
+  }
+
+  return protein;
+};
+
+export const translateSequencesToProteins = (
+  entries: FASTAEntry[],
+  frame: number = 0,
+): FASTAEntry[] => {
+  return entries
+    .map((entry) => ({
+      header: `${entry.header}|frame${frame + 1}`,
+      sequence: translateNucleotideSequence(entry.sequence, frame),
+    }))
+    .filter((entry) => entry.sequence.length > 0);
+};
+
 const createBaseCountRecord = () => ({
   A: 0,
   C: 0,
@@ -156,4 +209,3 @@ export const summarizeNucleotideAlignment = (
 
   return { sequences, comparisons };
 };
-

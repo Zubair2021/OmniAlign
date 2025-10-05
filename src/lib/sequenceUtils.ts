@@ -173,3 +173,15 @@ export function multiSequenceAlignment(
     sequence: seq.sequence.padEnd(maxLen, "-"),
   }));
 }
+
+
+export const inferSequenceType = (sequence: string): SequenceType => {
+  if (!sequence) return "protein";
+
+  const normalized = sequence.replace(/\s+/g, "").toUpperCase().replace(/U/g, "T");
+  const letters = normalized.replace(/-/g, "");
+  if (!letters) return "protein";
+
+  const nucleotidePattern = /^[ACGTRYSWKMBDHVN]+$/;
+  return nucleotidePattern.test(letters) ? "nucleotide" : "protein";
+};
