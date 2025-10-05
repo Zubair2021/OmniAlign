@@ -13,8 +13,8 @@ OmniAlign Atlas is a dual-mode FASTA alignment studio for both protein and nucle
 ## Getting Started
 
 ```sh
-git clone <your-repo-url>
-cd <your-repo-folder>
+git clone https://github.com/Zubair2021/OmniAlign.git
+cd OmniAlign
 npm install
 npm run dev
 ```
@@ -59,7 +59,7 @@ If you are starting from this local folder:
 2. Create an empty repository on GitHub (no README, no .gitignore).
 3. Link your local repository to GitHub and push:
    ```sh
-   git remote add origin git@github.com:<username>/<repo-name>.git
+   git remote add origin https://github.com/Zubair2021/OmniAlign.git
    git branch -M main
    git push -u origin main
    ```
