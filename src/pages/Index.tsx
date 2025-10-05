@@ -269,7 +269,7 @@ const Index = () => {
       <Header />
       <div className="container mx-auto max-w-7xl px-4 py-8">
         <div className="flex flex-col gap-8 lg:flex-row">
-          <ToolSidebar />
+          <ToolSidebar sequences={allSequences} sequenceType={sequenceType} />
 
           <main className="flex-1 space-y-8">
             <SequenceInputs

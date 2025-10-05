@@ -94,8 +94,8 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
   const showResidues = cellSize >= 24;
   const showCellBorders = cellSize >= 14;
   const condensedMode = cellSize <= 12;
-  const positionTickInterval = cellSize >= 42 ? 5 : cellSize >= 28 ? 10 : cellSize >= 18 ? 20 : 50;
-  const showMinorTicks = cellSize >= 18;
+  const positionTickInterval = cellSize >= 42 ? 5 : 10;
+  const showMinorTicks = cellSize >= 14;
   const rowHeight = showResidues ? Math.max(18, cellSize) : Math.max(8, Math.round(cellSize * 0.8));
   const fontSize = showResidues ? Math.max(10, Math.round(cellSize * 0.45)) : 0;
   const positionFontSize = cellSize >= 32 ? 11 : cellSize >= 24 ? 10 : cellSize >= 16 ? 9 : 8;
@@ -111,7 +111,7 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
   };
 
   return (
-    <Card className="overflow-hidden border-border/60">
+    <Card className="w-full overflow-hidden border-border/60">
       <div className="border-b border-border/60 bg-card/95 px-5 py-4">
         <h3 className="text-lg font-semibold">Sequence alignment overview</h3>
         <div className="mt-4 flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
@@ -142,87 +142,89 @@ export const AlignmentView = ({ comparisonResult }: AlignmentViewProps) => {
         </div>
       </div>
 
-      <ScrollArea className="max-h-[60vh]">
-        <div className="overflow-x-auto px-5 py-4">
-          <div className="min-w-max space-y-2">
-            <div className="flex items-center gap-3">
-              <div
-                className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-                style={{ width: labelWidth, flex: "0 0 auto" }}
-              >
-                Position
-              </div>
-              <div className="flex">
-                {Array.from({ length: alignmentLength }).map((_, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-center font-mono text-muted-foreground"
-                    style={{
-                      width: cellSize,
-                      minWidth: cellSize,
-                      fontSize: positionFontSize,
-                    }}
-                  >
-                    {(idx + 1) % positionTickInterval === 0
-                      ? idx + 1
-                      : showMinorTicks
-                        ? "·"
-                        : ""}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {alignmentRows.map((row) => (
-              <div key={row.header} className="flex items-center gap-3">
+      <div className="px-5 py-4">
+        <ScrollArea className="max-h-[60vh]">
+          <div className="w-full overflow-x-auto pb-4">
+            <div className="min-w-max space-y-2">
+              <div className="flex items-center gap-3">
                 <div
-                  className={cn(
-                    "font-medium overflow-hidden",
-                    row.role === "baseline" ? "text-muted-foreground" : "text-foreground",
-                  )}
+                  className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                   style={{ width: labelWidth, flex: "0 0 auto" }}
-                  title={row.header}
                 >
-                  <span className="block truncate">
-                    {row.header.length > 10 ? `${row.header.slice(0, 10)}…` : row.header}
-                  </span>
+                  Position
                 </div>
                 <div className="flex">
-                  {row.sequence.split("").map((char, colIndex) => {
-                    const baselineChar = baselineSequence[colIndex];
-                    const classes =
-                      row.role === "baseline"
-                        ? condensedMode
-                          ? "bg-muted/30"
-                          : "bg-muted/60 text-muted-foreground border-border/40"
-                        : getVariantClass(char, baselineChar);
-
-                    return (
-                      <div
-                        key={`${row.header}-${colIndex}`}
-                        className={cn(
-                          "flex items-center justify-center font-mono transition-colors",
-                          showCellBorders ? "border" : "border-none",
-                          classes,
-                          row.role === "baseline" ? "font-semibold" : "font-bold",
-                        )}
-                        style={{
-                          width: cellSize,
-                          minWidth: cellSize,
-                          height: rowHeight,
-                          fontSize,
-                        }}
-                      >
-                        {showResidues ? char : ""}
-                      </div>
-                    );
-                  })}
+                  {Array.from({ length: alignmentLength }).map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-center font-mono text-muted-foreground"
+                      style={{
+                        width: cellSize,
+                        minWidth: cellSize,
+                        fontSize: positionFontSize,
+                      }}
+                    >
+                      {(idx + 1) % positionTickInterval === 0
+                        ? idx + 1
+                        : showMinorTicks
+                          ? "·"
+                          : ""}
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+
+              {alignmentRows.map((row) => (
+                <div key={row.header} className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "font-medium overflow-hidden",
+                      row.role === "baseline" ? "text-muted-foreground" : "text-foreground",
+                    )}
+                    style={{ width: labelWidth, flex: "0 0 auto" }}
+                    title={row.header}
+                  >
+                    <span className="block truncate">
+                      {row.header.length > 10 ? `${row.header.slice(0, 10)}…` : row.header}
+                    </span>
+                  </div>
+                  <div className="flex">
+                    {row.sequence.split("").map((char, colIndex) => {
+                      const baselineChar = baselineSequence[colIndex];
+                      const classes =
+                        row.role === "baseline"
+                          ? condensedMode
+                            ? "bg-muted/30"
+                            : "bg-muted/60 text-muted-foreground border-border/40"
+                          : getVariantClass(char, baselineChar);
+
+                      return (
+                        <div
+                          key={`${row.header}-${colIndex}`}
+                          className={cn(
+                            "flex items-center justify-center font-mono transition-colors",
+                            showCellBorders ? "border" : "border-none",
+                            classes,
+                            row.role === "baseline" ? "font-semibold" : "font-bold",
+                          )}
+                          style={{
+                            width: cellSize,
+                            minWidth: cellSize,
+                            height: rowHeight,
+                            fontSize,
+                          }}
+                        >
+                          {showResidues ? char : ""}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </ScrollArea>
+        </ScrollArea>
+      </div>
 
       <div className="border-t border-border/60 bg-card/80 px-5 py-4 text-sm text-muted-foreground">
         <div className="flex flex-wrap gap-4">
