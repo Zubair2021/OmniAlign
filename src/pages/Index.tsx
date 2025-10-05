@@ -36,22 +36,33 @@ const Index = () => {
   const [variantText, setVariantText] = useState("");
   const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null);
   const [isComparing, setIsComparing] = useState(false);
-  const [selectedReferenceIndex, setSelectedReferenceIndex] = useState(0);
+  const [selectedReferenceIndex, setSelectedReferenceIndex] = useState<number | null>(null);
   const [noReferenceMode, setNoReferenceMode] = useState(false);
   const [sequenceType, setSequenceType] = useState<SequenceType>("protein");
 
-  const allSequences = useMemo(() => {
-    const refEntries = parseFASTAEntries(referenceText, sequenceType);
-    const varEntries = parseFASTAEntries(variantText, sequenceType);
-    return [...refEntries, ...varEntries];
-  }, [referenceText, variantText, sequenceType]);
+  const referenceEntries = useMemo(
+    () => parseFASTAEntries(referenceText, sequenceType),
+    [referenceText, sequenceType],
+  );
 
-  const availableSequences = useMemo(() => {
-    return allSequences.map((seq, index) => ({
-      header: seq.header,
-      index,
-    }));
-  }, [allSequences]);
+  const variantEntries = useMemo(
+    () => parseFASTAEntries(variantText, sequenceType),
+    [variantText, sequenceType],
+  );
+
+  const allSequences = useMemo(
+    () => [...referenceEntries, ...variantEntries],
+    [referenceEntries, variantEntries],
+  );
+
+  const availableSequences = useMemo(
+    () =>
+      allSequences.map((seq, index) => ({
+        header: seq.header,
+        index,
+      })),
+    [allSequences],
+  );
 
   useEffect(() => {
     setComparisonResult(null);
@@ -64,6 +75,12 @@ const Index = () => {
       id: "sequence-mode",
     });
   };
+
+  useEffect(() => {
+    if (noReferenceMode) {
+      setSelectedReferenceIndex(null);
+    }
+  }, [noReferenceMode]);
 
   const handleCompare = async () => {
     setIsComparing(true);
@@ -111,19 +128,22 @@ const Index = () => {
           return;
         }
 
-        if (selectedReferenceIndex >= allSequences.length) {
-          toast.error("Invalid reference selection");
-          return;
+      const effectiveIndex =
+        selectedReferenceIndex !== null ? selectedReferenceIndex : referenceEntries.length > 0 ? 0 : null;
+
+      if (effectiveIndex === null || effectiveIndex >= allSequences.length) {
+        toast.error("Select a reference sequence using the dropdown below");
+        return;
       }
 
-      const reference = allSequences[selectedReferenceIndex];
+      const reference = allSequences[effectiveIndex];
       const refValidation = validateSequence(reference.sequence, "Reference", sequenceType);
       if (!refValidation.isValid) {
         toast.error(refValidation.message);
         return;
       }
 
-      const otherSequences = allSequences.filter((_, idx) => idx !== selectedReferenceIndex);
+      const otherSequences = allSequences.filter((_, idx) => idx !== effectiveIndex);
       if (otherSequences.length === 0) {
         toast.error("Please provide at least one sequence to compare");
         return;
@@ -173,6 +193,7 @@ const Index = () => {
     setReferenceText("");
     setVariantText("");
     setComparisonResult(null);
+    setSelectedReferenceIndex(null);
     toast.info("Inputs cleared");
   };
 
@@ -189,6 +210,7 @@ const Index = () => {
       
       if (type === "reference") {
         setReferenceText(text);
+        setComparisonResult(null);
         toast.success("Reference file loaded");
       } else {
         const entries = parseFASTAEntries(text, sequenceType);
@@ -196,20 +218,50 @@ const Index = () => {
           toast.error("No valid sequences found in file");
           return;
         }
-
-        if (entries.length === 1) {
-          setReferenceText(text);
-          toast.info("Only one sequence found, loaded as reference");
-        } else {
-          setReferenceText(`>${entries[0].header}\n${entries[0].sequence}`);
-          const variants = entries.slice(1).map(e => `>${e.header}\n${e.sequence}`).join("\n");
-          setVariantText(variants);
-          toast.success(`Loaded ${entries.length} sequences (1 reference, ${entries.length - 1} variants)`);
-        }
+        setReferenceText("");
+        setVariantText(
+          entries.map((entry) => `>${entry.header}\n${entry.sequence}`).join("\n"),
+        );
+        setSelectedReferenceIndex(null);
+        setComparisonResult(null);
+        toast.success(
+          entries.length === 1
+            ? "Loaded 1 sequence. Choose a reference below or paste one manually."
+            : `Loaded ${entries.length} sequences. Select a reference below or enable multi-alignment.`,
+        );
       }
     };
     
     input.click();
+  };
+
+  const handleReferenceSelection = (index: number) => {
+    if (allSequences.length === 0) {
+      setSelectedReferenceIndex(null);
+      return;
+    }
+
+    if (Number.isNaN(index) || index < 0 || index >= allSequences.length) {
+      toast.error("Invalid reference selection");
+      setSelectedReferenceIndex(null);
+      return;
+    }
+
+    const selected = allSequences[index];
+    if (!selected) {
+      toast.error("Unable to use the selected sequence");
+      setSelectedReferenceIndex(null);
+      return;
+    }
+
+    const remaining = allSequences.filter((_, idx) => idx !== index);
+
+    setReferenceText(`>${selected.header}\n${selected.sequence}`);
+    setVariantText(
+      remaining.map((entry) => `>${entry.header}\n${entry.sequence}`).join("\n"),
+    );
+    setComparisonResult(null);
+    setSelectedReferenceIndex(0);
   };
 
   return (
@@ -231,7 +283,7 @@ const Index = () => {
               isComparing={isComparing}
               availableSequences={availableSequences}
               selectedReferenceIndex={selectedReferenceIndex}
-              onReferenceIndexChange={setSelectedReferenceIndex}
+              onReferenceIndexChange={handleReferenceSelection}
               noReferenceMode={noReferenceMode}
               onNoReferenceModeChange={setNoReferenceMode}
               sequenceType={sequenceType}

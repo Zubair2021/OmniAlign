@@ -18,7 +18,7 @@ interface SequenceInputsProps {
   onLoadFile: (type: "reference" | "combined") => void;
   isComparing: boolean;
   availableSequences: Array<{ header: string; index: number }>;
-  selectedReferenceIndex: number;
+  selectedReferenceIndex: number | null;
   onReferenceIndexChange: (index: number) => void;
   noReferenceMode: boolean;
   onNoReferenceModeChange: (enabled: boolean) => void;
@@ -53,9 +53,14 @@ export const SequenceInputs = ({
       ? ">variant_1\nMTEYKLVVVGAGGIGKSALTIQLIQNH...\n>variant_2\nMTEYKLVVVGAAGVGKSALTIQLIQNH..."
       : ">variant_1\nATGGCGTACGTTGCTAGCTAGATAG...\n>variant_2\nATGGCGTACGTCGCTAGCTAGCTAG...";
 
+  const trimmedReference = referenceText.trim();
+  const trimmedVariant = variantText.trim();
+  const hasReferenceSelection = selectedReferenceIndex !== null || Boolean(trimmedReference);
+  const hasComparisonSequences = Boolean(trimmedVariant);
+
   const canCompare = noReferenceMode
-    ? Boolean(referenceText.trim() || variantText.trim())
-    : Boolean(referenceText.trim() && variantText.trim());
+    ? Boolean(trimmedReference || trimmedVariant)
+    : Boolean(hasReferenceSelection && hasComparisonSequences);
 
   return (
     <Card className="p-6 shadow-medium border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in">
@@ -158,11 +163,11 @@ export const SequenceInputs = ({
                 Reference:
               </Label>
               <Select
-                value={selectedReferenceIndex.toString()}
-                onValueChange={(val) => onReferenceIndexChange(parseInt(val))}
+                value={selectedReferenceIndex !== null ? selectedReferenceIndex.toString() : undefined}
+                onValueChange={(val) => onReferenceIndexChange(parseInt(val, 10))}
               >
                 <SelectTrigger id="reference-select" className="w-[200px]">
-                  <SelectValue />
+                  <SelectValue placeholder="Select reference" />
                 </SelectTrigger>
                 <SelectContent>
                   {availableSequences.map((seq) => (
